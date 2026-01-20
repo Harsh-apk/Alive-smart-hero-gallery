@@ -25,6 +25,10 @@ export function SmartHeroGallery() {
     };
 
     // We need to hide nudge if user scrolls.
+    // This is handled by passing a callback or checking scroll position in GalleryList if possible.
+
+
+    // We need to hide nudge if user scrolls.
     // GalleryList has `onViewableItemsChanged`. 
     // We can pass a callback "onScrollStarted" or check index in parent?
     // Easier: Pass `onPageChange` to GalleryList. But GalleryList handles its own viewability state.

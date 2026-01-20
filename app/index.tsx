@@ -3,9 +3,12 @@ import React from 'react';
 import { Dimensions, StatusBar as RNStatusBar, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SmartHeroGallery } from '../components/SmartHeroGallery';
 
+import { useRouter } from 'expo-router';
+
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
+    const router = useRouter();
     return (
         <View style={styles.container}>
             <RNStatusBar barStyle="dark-content" />
@@ -134,7 +137,11 @@ export default function HomeScreen() {
                         <Text style={styles.pricePer}>/person</Text>
                     </View>
                 </View>
-                <TouchableOpacity style={styles.bookButton} activeOpacity={0.8}>
+                <TouchableOpacity
+                    style={styles.bookButton}
+                    activeOpacity={0.8}
+                    onPress={() => router.push('/availability')}
+                >
                     <Text style={styles.bookButtonText}>Check Availability</Text>
                 </TouchableOpacity>
             </View>
