@@ -1,50 +1,70 @@
-# Welcome to your Expo app 👋
+# Smart Hero Gallery
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A smart, horizontally scrollable hero gallery built with React Native (Expo). This project is a solution for the "Alive" Take-Home Assignment.
 
-## Get started
+## Setup Steps
 
-1. Install dependencies
+1.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
+2.  **Run the App**:
+    ```bash
+    npm start
+    ```
+    - Press `i` to run on iOS Simulator.
+    - Press `w` to run on Web.
+    - Press `a` to run on Android Emulator.
+3.  **Run Tests**:
+    ```bash
+    npm test
+    ```
 
-   ```bash
-   npm install
-   ```
+## Core Logic & Order Preservation
 
-2. Start the app
+The core logic resides in `utils/pageBuilder.ts`.
+- **Goal**: Build 2-column pages (Hero + 2 Stacked) while prioritizing a 9:16 video.
+- **Order Preservation**: We use a greedy approach with a **lookahead buffer** (default 12 items).
+    1.  We look ahead `N` items to find the "best" video candidate (closest to 9:16 aspect ratio).
+    2.  If a video is found, we select it for the current page and pull it out of the queue.
+    3.  We then greedily select the next available images to fill the remaining slots (usually 2 images).
+    4.  If a video is *not* found (or already used), we preserve the original API order for images.
+    5.  **Tie-Breaker**: If two videos have the same "best" aspect ratio, we pick the one appearing earlier in the list.
 
-   ```bash
-   npx expo start
-   ```
+## Media Loading & Fallbacks
 
-In the output, you'll find options to open the app in a
+We implemented a robust progressive loading strategy in `components/SmartHeroGallery/GalleryMedia.tsx`:
+1.  **Preview**: Instantly show the lightweight preview thumbnail (blurhash or small image).
+2.  **Processed**: Attempt to load the optimized mobile version.
+3.  **Original**: If processed fails (onError), automatically fallback to the original high-res URL.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+**Videos**:
+- Automatically show the **poster** (using the same fallback chain: Preview -> Processed -> Original) while the video buffers.
+- Video playback is auto-managed based on viewability.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Performance Optimizations
 
-## Get a fresh project
+To ensure smooth scrolling with 100+ items:
+- **`FlatList` Configuration**:
+    - `windowSize={3}`: Reduces memory by rendering only adjacent pages.
+    - `removeClippedSubviews={true}`: Unmounts views off-screen.
+    - `initialNumToRender={1}`: Fast startup.
+- **Viewability**:
+    - We track the visible page index using `onViewableItemsChanged` and `viewabilityConfig`.
+    - Videos **auto-pause** when their page is not visible to save CPU/Battery.
+- **Memoization**:
+    - `buildPages` is memoized with `useMemo`.
+    - Render functions are stable with `useCallback`.
 
-When you're ready, run:
+## Smart Cover Approach
 
-```bash
-npm run reset-project
-```
+To minimize cropping while filling the fixed layout:
+- We use `contentFit="cover"` (equivalent to `resizeMode="cover"`).
+- **Why**: This scales the image to fill the container, ensuring no empty space. It inherently crops "mainly on one axis" depending on the difference between the container's aspect ratio and the content's aspect ratio.
+- For the **Full Screen Modal**, we switch to `contentFit="contain"` (or allow standard fit) to ensure the user sees the full content without cropping.
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Future Improvements
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- **Virtualization for Modal**: The `DetailModal` currently uses a fresh `FlatList`. For extremely large lists, passing shared elements or syncing state more deeply would be better.
+- **Prefetching**: Implement "Page N+1" prefetching (Extra 1) for even smoother media display.
+- **E2E Testing**: Add Maestro or Detox tests for full scroll flows.
