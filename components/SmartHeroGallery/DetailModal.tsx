@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Dimensions, FlatList, Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { GalleryItem } from '../../types/gallery';
 import { GalleryMedia } from './GalleryMedia';
 
@@ -13,6 +15,71 @@ type Props = {
 
 const { width, height } = Dimensions.get('window');
 
+const DetailItem = React.memo(({ item }: { item: GalleryItem }) => {
+    if (item.type === 'video') {
+        return (
+            <View style={styles.page}>
+                <GalleryMedia
+                    item={item}
+                    style={styles.media}
+                    isVisible={true}
+                    contentFit="contain"
+                />
+            </View>
+        );
+    }
+
+    // Zoomable Image
+    const scale = useSharedValue(1);
+    const savedScale = useSharedValue(1);
+
+    const pinch = Gesture.Pinch()
+        .onUpdate((e) => {
+            scale.value = savedScale.value * e.scale;
+        })
+        .onEnd(() => {
+            if (scale.value < 1) {
+                scale.value = withSpring(1);
+                savedScale.value = 1;
+            } else {
+                savedScale.value = scale.value;
+            }
+        });
+
+    const doubleTap = Gesture.Tap()
+        .numberOfTaps(2)
+        .onEnd(() => {
+            if (scale.value !== 1) {
+                scale.value = withSpring(1);
+                savedScale.value = 1;
+            } else {
+                scale.value = withSpring(2);
+                savedScale.value = 2;
+            }
+        });
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    const composed = Gesture.Simultaneous(pinch, doubleTap);
+
+    return (
+        <GestureHandlerRootView style={styles.page}>
+            <GestureDetector gesture={composed}>
+                <Animated.View style={[styles.media, animatedStyle, { width: width, height: height }]}>
+                    <GalleryMedia
+                        item={item}
+                        style={{ flex: 1 }}
+                        isVisible={true}
+                        contentFit="contain"
+                    />
+                </Animated.View>
+            </GestureDetector>
+        </GestureHandlerRootView>
+    );
+});
+
 export function DetailModal({ visible, initialItem, items, onClose }: Props) {
     // Find initial index
     const initialIndex = items.findIndex(i => i._id === initialItem._id);
@@ -23,23 +90,7 @@ export function DetailModal({ visible, initialItem, items, onClose }: Props) {
     // Since we already used FlatList for the main gallery, let's stick to FlatList for consistency (and less deps).
 
     const renderItem = ({ item }: { item: GalleryItem }) => {
-        return (
-            <View style={styles.page}>
-                {/* Full screen media */}
-                <GalleryMedia
-                    item={item}
-                    style={styles.media}
-                    isVisible={true} // Autoplay video in modal? Yes.
-                // "In full screen, it should show full content without truncate unlike cover."
-                // GalleryMedia currently does `contentFit="cover"`.
-                // We need to override style or pass a prop for `contentFit="contain"`.
-                // Let's modify GalleryMedia to accept `contentFit` prop? 
-                // Or just override via style? `expo-image` style doesn't control fit? 
-                // `contentFit` is a prop.
-                // I need to modify GalleryMedia to accept `contentFit` prop.
-                />
-            </View>
-        );
+        return <DetailItem item={item} />;
     };
 
     return (

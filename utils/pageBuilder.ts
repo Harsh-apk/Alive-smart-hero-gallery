@@ -20,7 +20,8 @@ export function buildPages(
     opts?: BuildPagesOptions
 ): PageLayout[] {
     const pages: PageLayout[] = [];
-    const lookahead = opts?.lookahead ?? 12;
+    const lookahead = opts?.lookahead ?? 1000; // Increased to ensure we find videos if they exist (Video Rule > Order Rule)
+
 
     // Create a mutable copy to track remaining items
     // We need to identify items by ID to remove them correctly if we pick out-of-order
@@ -50,7 +51,6 @@ export function buildPages(
             });
             selectedVideo = videoCandidates[0].item;
         }
-
         // 2. Select items for the page
         // We need 3 items total.
         // If we have a selectedVideo, we MUST use it (unless we can't find 2 images to pair with it).

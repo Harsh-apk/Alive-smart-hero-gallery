@@ -21,11 +21,13 @@ export function useGalleryData() {
                 // Let's inspect the API response if possible or assume `json.data.gallery`.
 
                 if (json.data && Array.isArray(json.data.gallery)) {
-                    setData(json.data.gallery);
+                    const gallery = json.data.gallery as GalleryItem[];
+                    setData(gallery);
                 } else if (json.gallery) { // Fallback check
-                    setData(json.gallery);
+                    const gallery = json.gallery as GalleryItem[];
+                    setData(gallery);
                 } else {
-                    console.warn("Unexpected API structure", json);
+                    console.warn("[useGalleryData] Unexpected API structure", json);
                     // Might be just array? No, "data.gallery".
                 }
             } catch (err) {

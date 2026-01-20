@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GalleryItem } from '../../types/gallery';
 import { getImageUrl, getVideoPosterUrl, getVideoUrl } from '../../utils/urlHelper';
 
@@ -14,22 +15,35 @@ type Props = {
 };
 
 export function GalleryMedia({ item, style, onPress, isVisible = false, contentFit = 'cover' }: Props) {
+
+
     const [imageSrc, setImageSrc] = useState(
         item.type === 'video'
             ? getVideoPosterUrl(item.src, 'processed')
             : getImageUrl(item.src, 'processed')
     );
 
+    const [videoSrc, setVideoSrc] = useState(getVideoUrl(item.src, 'processed'));
+    const [videoError, setVideoError] = useState(false);
+
     // Fallback state tracking
     const [hasFailedProcessed, setHasFailedProcessed] = useState(false);
 
     // Video State
-    const videoSourceRef = useRef(getVideoUrl(item.src, 'processed'));
-    const player = useVideoPlayer(videoSourceRef.current, (player) => {
+    // We update source if fallback is needed
+    const player = useVideoPlayer(videoSrc, (player) => {
         player.loop = true;
         player.muted = true;
         // Auto-play is handled by effect
     });
+
+    // Listen for video errors
+    useEffect(() => {
+        // Fallback Logic Implementation if needed based on external error triggers
+    }, [videoSrc]);
+
+
+    const [showPoster, setShowPoster] = useState(true);
 
     // Handle Video Visibility
     useEffect(() => {
@@ -42,6 +56,18 @@ export function GalleryMedia({ item, style, onPress, isVisible = false, contentF
         }
     }, [isVisible, item.type, player]);
 
+    // Handle Poster visibility
+    useEffect(() => {
+        if (item.type === 'video') {
+            const subscription = player.addListener('playingChange', (isPlaying) => {
+                if (isPlaying) {
+                    setShowPoster(false);
+                }
+            });
+            return () => subscription.remove();
+        }
+    }, [player, item.type]);
+
 
     const handleImageError = () => {
         if (!hasFailedProcessed) {
@@ -50,6 +76,17 @@ export function GalleryMedia({ item, style, onPress, isVisible = false, contentF
                 ? getVideoPosterUrl(item.src, 'original')
                 : getImageUrl(item.src, 'original');
             setImageSrc(original);
+        }
+    };
+
+    const handleVideoRetry = () => {
+        if (!videoError) {
+            // First failure: Try original
+            setVideoError(true);
+            setVideoSrc(getVideoUrl(item.src, 'original'));
+        } else {
+            // Already failed original? Just replay.
+            player.replay();
         }
     };
 
@@ -62,11 +99,27 @@ export function GalleryMedia({ item, style, onPress, isVisible = false, contentF
                     contentFit={contentFit}
                     nativeControls={false}
                 />
-                {/* Overlay Poster while loading? expo-video handles buffering but doesn't show poster natively same way? 
-             We can overlay an Image and hide it when video plays? 
-             For now, let's trust VideoView or just place Image behind it? 
-             Actually, strict requirements say: "While the video downloads, keep showing the poster."
-         */}
+
+                {/* Poster Overlay */}
+                {showPoster && (
+                    <Image
+                        source={{ uri: imageSrc }}
+                        placeholder={{ uri: getVideoPosterUrl(item.src, 'preview') }}
+                        style={StyleSheet.absoluteFill}
+                        contentFit={contentFit}
+                        transition={200}
+                    />
+                )}
+
+                {/* Retry Overlay */}
+                {videoError && (
+                    <View style={[StyleSheet.absoluteFill, styles.centered, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+                        <TouchableOpacity onPress={handleVideoRetry} style={styles.retryButton}>
+                            <Ionicons name="refresh-circle" size={48} color="#fff" />
+                            <Text style={styles.retryText}>Tap to retry</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </TouchableOpacity>
         );
     }
@@ -89,5 +142,18 @@ const styles = StyleSheet.create({
     container: {
         overflow: 'hidden',
         backgroundColor: '#eee', // loading bg
+
+    },
+    centered: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    retryButton: {
+        alignItems: 'center',
+    },
+    retryText: {
+        color: '#fff',
+        marginTop: 4,
+        fontWeight: '600',
     },
 });

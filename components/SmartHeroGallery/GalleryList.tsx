@@ -1,6 +1,8 @@
+import { Image } from 'expo-image';
 import React, { RefObject, useCallback, useRef, useState } from 'react';
 import { Dimensions, FlatList, ViewToken } from 'react-native';
 import { GalleryItem, PageLayout } from '../../types/gallery';
+import { getImageUrl, getVideoPosterUrl } from '../../utils/urlHelper';
 import { GalleryPage } from './GalleryPage';
 
 type Props = {
@@ -25,7 +27,33 @@ export function GalleryList({ pages, onPressItem, listRef, onScroll }: Props) {
         }
     }).current;
 
-    // Viewability config: Item is considered viewable if > 50% visible
+    // Prefetching Logic: When viewableIndex changes, prefetch next pages (N+1, N+2)
+    React.useEffect(() => {
+        const indicesToPrefetch = [viewableIndex + 1, viewableIndex + 2];
+
+        indicesToPrefetch.forEach(nextIndex => {
+            if (nextIndex < pages.length) {
+                const page = pages[nextIndex];
+                const itemsToPrefetch = [page.left, page.rightTop, page.rightBottom];
+
+                itemsToPrefetch.forEach(item => {
+                    let url;
+                    if (item.type === 'image') {
+                        url = getImageUrl(item.src, 'processed');
+                    } else if (item.type === 'video') {
+                        // For video, we only prefetch the poster image. 
+                        url = getVideoPosterUrl(item.src, 'processed');
+                    }
+
+                    if (url) {
+                        Image.prefetch(url);
+                    }
+                });
+            }
+        });
+    }, [viewableIndex, pages]);
+
+    // Viewability config: Item is considered viewable if > 60% visible
     const viewabilityConfig = useRef({
         itemVisiblePercentThreshold: 60,
     }).current;

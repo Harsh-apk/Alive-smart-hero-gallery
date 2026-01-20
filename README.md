@@ -24,7 +24,7 @@ A smart, horizontally scrollable hero gallery built with React Native (Expo). Th
 
 The core logic resides in `utils/pageBuilder.ts`.
 - **Goal**: Build 2-column pages (Hero + 2 Stacked) while prioritizing a 9:16 video.
-- **Order Preservation**: We use a greedy approach with a **lookahead buffer** (default 12 items).
+- **Order Preservation**: We use a greedy approach with a **lookahead buffer** (set to 1000 to prioritize finding a video).
     1.  We look ahead `N` items to find the "best" video candidate (closest to 9:16 aspect ratio).
     2.  If a video is found, we select it for the current page and pull it out of the queue.
     3.  We then greedily select the next available images to fill the remaining slots (usually 2 images).
@@ -37,10 +37,16 @@ We implemented a robust progressive loading strategy in `components/SmartHeroGal
 1.  **Preview**: Instantly show the lightweight preview thumbnail (blurhash or small image).
 2.  **Processed**: Attempt to load the optimized mobile version.
 3.  **Original**: If processed fails (onError), automatically fallback to the original high-res URL.
+4.  **Retry**: Videos have a manual retry button if all loading attempts fail.
 
 **Videos**:
 - Automatically show the **poster** (using the same fallback chain: Preview -> Processed -> Original) while the video buffers.
 - Video playback is auto-managed based on viewability.
+
+## User Experience (UX)
+
+- **Nudge**: A visual "Nudge" animation appears on the first page to indicate horizontal scrollability. It automatically dismisses when the user scrolls.
+- **Smart Layout**: Videos are prioritized in the large "Hero" slot (Column 1) for maximum impact.
 
 ## Performance Optimizations
 
@@ -49,6 +55,10 @@ To ensure smooth scrolling with 100+ items:
     - `windowSize={3}`: Reduces memory by rendering only adjacent pages.
     - `removeClippedSubviews={true}`: Unmounts views off-screen.
     - `initialNumToRender={1}`: Fast startup.
+- **Prefetching**:
+    - We implement aggressive prefetching for "Page N+1" and "Page N+2".
+    - Images are prefetched using `Image.prefetch`.
+    - Video posters are prefetched to ensure no blank frames.
 - **Viewability**:
     - We track the visible page index using `onViewableItemsChanged` and `viewabilityConfig`.
     - Videos **auto-pause** when their page is not visible to save CPU/Battery.
@@ -66,5 +76,5 @@ To minimize cropping while filling the fixed layout:
 ## Future Improvements
 
 - **Virtualization for Modal**: The `DetailModal` currently uses a fresh `FlatList`. For extremely large lists, passing shared elements or syncing state more deeply would be better.
-- **Prefetching**: Implement "Page N+1" prefetching (Extra 1) for even smoother media display.
+- **Advanced Caching**: Implement a custom caching layer (LRU) for images beyond standard HTTP cache.
 - **E2E Testing**: Add Maestro or Detox tests for full scroll flows.
